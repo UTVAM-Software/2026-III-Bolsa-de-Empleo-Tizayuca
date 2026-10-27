@@ -1,0 +1,5 @@
+{% extends 'crud/lista.html' %}
+
+{% block acciones_extra %}
+    {% if puede_editar %}<a href="{% url 'cuentas:usuario_password' obj.pk %}" class="btn btn-secundario btn-chico">Contraseña</a>{% endif %}
+{% endblock %}

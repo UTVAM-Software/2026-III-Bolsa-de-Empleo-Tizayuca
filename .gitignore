@@ -1,0 +1,6 @@
+MiAmbienteTest/
+db.sqlite3
+__pycache__/
+*.pyc
+media/
+.DS_Store

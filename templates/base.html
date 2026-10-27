@@ -1,0 +1,54 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titulo %}Bolsa de Empleo Tizayuca{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'vacantes/estilos.css' %}">
+</head>
+<body>
+    <header class="encabezado">
+        <div class="contenedor encabezado-flex">
+            <a href="{% url 'vacantes:inicio' %}"><img src="{% static 'vacantes/img/logohorizontal.png' %}" alt="Tizayuca Ciudad Próspera" class="logo-header"></a>
+            <div>
+                <h1>Bolsa de Empleo</h1>
+                <p>Encuentra trabajo en Tizayuca y alrededores</p>
+            </div>
+        </div>
+    </header>
+
+    <nav class="menu">
+        <div class="contenedor menu-flex">
+            <a href="{% url 'vacantes:inicio' %}">Inicio</a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'cuentas:panel' %}">Mi panel</a>
+                {% if perms.vacantes.view_vacante %}<a href="{% url 'vacantes:lista' %}">Vacantes</a>{% endif %}
+                {% if perms.postulaciones.view_postulacion %}<a href="{% url 'postulaciones:lista' %}">Postulaciones</a>{% endif %}
+                {% if perms.auth.view_user %}<a href="{% url 'cuentas:usuario_lista' %}">Usuarios</a>{% endif %}
+                {% if user.is_staff %}<a href="{% url 'admin:index' %}">Admin Django</a>{% endif %}
+                <span class="menu-usuario">
+                    {{ user.get_full_name|default:user.username }}
+                    <form method="post" action="{% url 'logout' %}" class="form-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="enlace">Cerrar sesión</button>
+                    </form>
+                </span>
+            {% else %}
+                <a href="{% url 'login' %}" class="menu-usuario">Iniciar sesión</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="contenedor">
+        {% if messages %}
+            {% for m in messages %}<div class="aviso aviso-{{ m.tags }}">{{ m }}</div>{% endfor %}
+        {% endif %}
+        {% block contenido %}{% endblock %}
+    </main>
+
+    <footer class="pie">
+        <p>H. Ayuntamiento de Tizayuca · Bolsa de Empleo</p>
+    </footer>
+</body>
+</html>

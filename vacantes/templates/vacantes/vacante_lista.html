@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Listado de Vacantes · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<div class="barra-titulo">
+    <h2>Listado de Vacantes</h2>
+    {% if perms.vacantes.add_vacante %}
+        <a href="{% url 'vacantes:crear' %}" class="btn btn-principal">+ Crear Vacante</a>
+    {% endif %}
+</div>
+
+<form method="get" class="buscador">
+    <input type="text" name="q" value="{{ q }}" placeholder="Buscar por puesto o empresa">
+    <button type="submit">Buscar</button>
+</form>
+
+<p class="conteo">{{ page_obj.paginator.count }} vacante{{ page_obj.paginator.count|pluralize }}</p>
+
+<div class="tabla-scroll">
+<table class="tabla">
+    <thead>
+        <tr>
+            <th>Título</th>
+            <th>Empresa</th>
+            <th>Categoría</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in vacantes %}
+        <tr>
+            <td>{{ v.titulo }}{% if v.destacada %} <span class="mini-etiqueta">Destacada</span>{% endif %}</td>
+            <td>{{ v.empresa.nombre }}</td>
+            <td>{{ v.categoria.nombre }}</td>
+            <td>{% if v.activa %}Activa{% else %}<span class="gris">Inactiva</span>{% endif %}</td>
+            <td class="acciones">
+                {% if perms.vacantes.change_vacante %}<a href="{% url 'vacantes:editar' v.pk %}" class="btn btn-editar">Actualizar</a>{% endif %}
+                {% if perms.vacantes.delete_vacante %}<a href="{% url 'vacantes:eliminar' v.pk %}" class="btn btn-eliminar">Eliminar</a>{% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="vacio">No hay vacantes.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% include 'vacantes/paginacion.html' %}
+{% endblock %}

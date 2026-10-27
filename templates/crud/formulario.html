@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{% firstof titulo_pagina titulo %} · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<section class="caja-form">
+    <h2>{% if titulo_pagina %}{{ titulo_pagina }}{% elif object.pk %}Editar: {{ object }}{% else %}Nuevo registro · {{ titulo }}{% endif %}</h2>
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {% for e in form.non_field_errors %}<div class="aviso aviso-error">{{ e }}</div>{% endfor %}
+        {% for campo in form %}
+            <div class="campo {% if campo.widget_type == 'checkbox' %}campo-check{% endif %}">
+                {{ campo.label_tag }}
+                {{ campo }}
+                {% if campo.help_text %}<p class="ayuda">{{ campo.help_text|safe }}</p>{% endif %}
+                {% for e in campo.errors %}<p class="error">{{ e }}</p>{% endfor %}
+            </div>
+        {% endfor %}
+        <div class="botones">
+            <button type="submit" class="btn btn-principal">Guardar</button>
+            <a href="{% url cancelar|default:'vacantes:lista' %}" class="btn btn-secundario">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

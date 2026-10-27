@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+        <form method="get" class="buscador">
+            <input type="text" name="q" value="{{ busqueda }}" placeholder="Puesto, empresa o palabra clave">
+            <select name="categoria">
+                <option value="">Todas las categorías</option>
+                {% for c in categorias %}
+                    <option value="{{ c.id }}" {% if categoria_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Buscar</button>
+        </form>
+
+        <p class="conteo">{{ total }} vacante{{ total|pluralize }} disponible{{ total|pluralize }}</p>
+
+        <section class="lista">
+            {% for v in vacantes %}
+                <article class="tarjeta {% if v.destacada %}destacada{% endif %}">
+                    {% if v.destacada %}<span class="etiqueta">Destacada</span>{% endif %}
+                    <h2>{{ v.titulo }}</h2>
+                    <p class="empresa">
+                        {{ v.empresa.nombre }}
+                        {% if v.empresa.verificada %}<span class="verificada">✔ Verificada</span>{% endif %}
+                    </p>
+                    <ul class="datos">
+                        <li>📍 {{ v.ubicacion }}</li>
+                        <li>🕒 {{ v.horario }}</li>
+                        {% if v.sueldo_min %}
+                            <li>💵 ${{ v.sueldo_min|floatformat:0 }}{% if v.sueldo_max %} - ${{ v.sueldo_max|floatformat:0 }}{% endif %}</li>
+                        {% endif %}
+                        <li>🏷️ {{ v.categoria.nombre }}</li>
+                    </ul>
+                    <p class="descripcion">{{ v.descripcion|truncatewords:25 }}</p>
+                </article>
+            {% empty %}
+                <p class="vacio">No hay vacantes con esos filtros por ahora.</p>
+            {% endfor %}
+        </section>
+
+        {% include 'vacantes/paginacion.html' %}
+    {% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Panel · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<h2 class="barra-titulo">Hola, {{ user.get_full_name|default:user.username }}</h2>
+{% if user.groups.all %}<p class="conteo">Rol: {{ user.groups.all|join:", " }}</p>{% endif %}
+
+{% for seccion, items in secciones %}
+    <h3 class="panel-seccion">{{ seccion }}</h3>
+    <div class="panel">
+        {% for permiso, url, nombre, descripcion in items %}
+            <a href="{% url url %}"><strong>{{ nombre }}</strong><span>{{ descripcion }}</span></a>
+        {% endfor %}
+    </div>
+{% empty %}
+    <p class="vacio">Tu cuenta todavía no tiene permisos asignados. Pide al administrador que te asigne un rol.</p>
+{% endfor %}
+{% endblock %}

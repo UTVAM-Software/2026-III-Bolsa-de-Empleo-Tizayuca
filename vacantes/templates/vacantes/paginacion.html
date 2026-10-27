@@ -1,0 +1,13 @@
+{% if page_obj.has_other_pages %}
+<nav class="paginacion">
+    {% if page_obj.has_previous %}
+        <a href="?page=1{% if q %}&q={{ q|urlencode }}{% endif %}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}">« Primera</a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}">‹ Anterior</a>
+    {% endif %}
+    <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}">Siguiente ›</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}">Última »</a>
+    {% endif %}
+</nav>
+{% endif %}

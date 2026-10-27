@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Eliminar · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<section class="caja-form angosta">
+    <h2>Eliminar {{ tipo|default:"registro" }}</h2>
+    <p>¿Seguro que quieres eliminar <strong>{{ object }}</strong>? Esta acción no se puede deshacer.</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="botones">
+            <button type="submit" class="btn btn-eliminar">Sí, eliminar</button>
+            <a href="{% url cancelar %}" class="btn btn-secundario">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

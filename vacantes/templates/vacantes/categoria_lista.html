@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Categorías · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<div class="barra-titulo">
+    <h2>Listado de Categorías</h2>
+    {% if perms.vacantes.add_categoria %}
+        <a href="{% url 'vacantes:categoria_crear' %}" class="btn btn-principal">+ Crear Categoría</a>
+    {% endif %}
+</div>
+
+<table class="tabla">
+    <thead>
+        <tr><th>Nombre</th><th>Acciones</th></tr>
+    </thead>
+    <tbody>
+        {% for c in categorias %}
+        <tr>
+            <td>{{ c.nombre }}</td>
+            <td class="acciones">
+                {% if perms.vacantes.change_categoria %}<a href="{% url 'vacantes:categoria_editar' c.pk %}" class="btn btn-editar">Actualizar</a>{% endif %}
+                {% if perms.vacantes.delete_categoria %}<a href="{% url 'vacantes:categoria_eliminar' c.pk %}" class="btn btn-eliminar">Eliminar</a>{% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="2" class="vacio">No hay categorías.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% include 'vacantes/paginacion.html' %}
+{% endblock %}

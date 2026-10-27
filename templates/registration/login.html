@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Iniciar sesión · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<section class="caja-form angosta">
+    <h2>Iniciar sesión</h2>
+
+    {% if form.errors %}
+        <div class="aviso aviso-error">Usuario o contraseña incorrectos.</div>
+    {% endif %}
+    {% if next and user.is_authenticated %}
+        <div class="aviso aviso-error">Tu cuenta no tiene permiso para ver esa página.</div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <label for="id_username">Usuario</label>
+        {{ form.username }}
+        <label for="id_password">Contraseña</label>
+        {{ form.password }}
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="btn btn-principal">Entrar</button>
+    </form>
+</section>
+{% endblock %}
