@@ -241,7 +241,7 @@ pip install -r requirements.txt
 # 4. Crear la base de datos local (SQLite)
 python manage.py migrate
 
-# 5. Preparar el ambiente: roles, categorías y cuentas admin_muni y profesor
+# 5. Preparar el ambiente: roles, categorías y cuentas de administrador y profesor
 python manage.py preparar_entorno
 
 # 6. Correr el servidor
@@ -251,15 +251,20 @@ python manage.py runserver
 Opcional: `python manage.py poblar_vacantes` crea 1000 vacantes de prueba (`--cantidad 5000` o `--borrar`) y `python manage.py test` corre las pruebas.
 
 ### Funciones para el público
-- **Registro** en `/panel/registro/`: la persona elige si busca empleo o si es empresa y queda en el grupo correspondiente (nunca en uno de administración).
+- **Registro** en `/panel/registro/` (nombre, correo y contraseña): la persona elige si busca empleo o si es empresa y queda en el grupo correspondiente (nunca en uno de administración).
 - **Detalle de vacante** en `/vacantes/<id>/` y botón **Postularme** (una sola vez por vacante).
 - **Cambio de contraseña** desde el menú.
 
+### Acceso y matrícula
+- Se entra con el **correo electrónico** y la contraseña (no hay "usuario" que inventar). El correo no se puede repetir, sin importar mayúsculas o minúsculas, y la base de datos también lo rechaza (índice único en `auth_user`).
+- Cada cuenta recibe una **matrícula automática** con formato `TZY-AÑO-NNNNN` (por ejemplo `TZY-2026-00012`). Es única, consecutiva y se ve en el panel de la persona y en la lista de usuarios (`/panel/usuarios/`), donde también se puede buscar. Las cuentas que ya existían recibieron la suya con la migración `cuentas/0001_matricula.py`.
+- Las cuentas antiguas sin correo (por ejemplo la de `createsuperuser`) todavía pueden entrar con su nombre de usuario.
+
 ### Cuentas que crea `preparar_entorno`
-| Usuario | Rol | Contraseña inicial |
+| Correo | Rol | Contraseña inicial |
 |---|---|---|
-| `admin_muni` | Administradores | `Tizayuca.2026` |
-| `profesor` | Solo lectura | `Tizayuca.2026` |
+| `admin@example.com` | Administradores | `Tizayuca.2026` |
+| `profesor@example.com` | Solo lectura | `Tizayuca.2026` |
 
 Son cuentas para uso local; cambia la contraseña con `--password OtraClave` al ejecutar el comando.
 
@@ -343,7 +348,7 @@ Todos los listados están **paginados** (20 por página; 12 en la página públi
 ```bash
 python manage.py test
 ```
-45 pruebas: login/logout, que **cada URL** del sistema redirija al login sin sesión, que un rol sin permiso reciba 403, que no se pueda abrir el registro de otro usuario (404), el CRUD de usuarios/grupos/permisos y la prueba de carga con 1000 vacantes.
+52 pruebas: login/logout, que **cada URL** del sistema redirija al login sin sesión, que un rol sin permiso reciba 403, que no se pueda abrir el registro de otro usuario (404), el CRUD de usuarios/grupos/permisos y la prueba de carga con 1000 vacantes.
 
 ---
 

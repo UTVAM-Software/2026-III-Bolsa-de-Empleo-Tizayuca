@@ -18,9 +18,13 @@ class FormLoginProtegido(AuthenticationForm):
     error_messages = {
         **AuthenticationForm.error_messages,
         # mismo mensaje para usuario inexistente y contraseña mala: no revela qué cuentas existen
-        'invalid_login': 'Usuario o contraseña incorrectos.',
+        'invalid_login': 'Correo o contraseña incorrectos.',
         'bloqueado': 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.',
     }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].label = 'Correo electrónico'
 
     def clean(self):
         username = self.data.get('username', '')

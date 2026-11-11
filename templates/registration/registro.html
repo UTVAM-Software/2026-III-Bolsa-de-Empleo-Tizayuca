@@ -7,7 +7,7 @@
     <h2>Crear cuenta</h2>
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
+        {% include 'crud/campos.html' %}
         <button type="submit" class="btn btn-principal">Registrarme</button>
     </form>
     <p class="ayuda">¿Ya tienes cuenta? <a href="{% url 'login' %}">Inicia sesión</a></p>

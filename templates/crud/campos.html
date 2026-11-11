@@ -1,0 +1,9 @@
+{% for e in form.non_field_errors %}<div class="aviso aviso-error">{{ e }}</div>{% endfor %}
+{% for campo in form %}
+    <div class="campo {% if campo.widget_type == 'checkbox' %}campo-check{% endif %}">
+        {{ campo.label_tag }}
+        {{ campo }}
+        {% if campo.help_text %}<div class="ayuda">{{ campo.help_text|safe }}</div>{% endif %}
+        {% for e in campo.errors %}<p class="error">{{ e }}</p>{% endfor %}
+    </div>
+{% endfor %}

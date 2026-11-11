@@ -163,6 +163,7 @@ CV_MAX_BYTES = 2 * 1024 * 1024
 
 
 # Login / logout
+AUTHENTICATION_BACKENDS = ['cuentas.backends.CorreoBackend']
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'cuentas:panel'
 LOGOUT_REDIRECT_URL = 'vacantes:inicio'

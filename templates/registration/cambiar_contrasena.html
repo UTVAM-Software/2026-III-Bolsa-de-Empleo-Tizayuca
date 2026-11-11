@@ -7,7 +7,7 @@
     <h2>Cambiar contraseña</h2>
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
+        {% include 'crud/campos.html' %}
         <button type="submit" class="btn btn-principal">Guardar</button>
     </form>
 </section>

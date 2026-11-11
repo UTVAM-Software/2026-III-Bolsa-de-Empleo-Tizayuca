@@ -94,13 +94,13 @@ class FormUsuarioMixin:
 class UsuarioLista(LoginRequiredMixin, PermissionRequiredMixin, UsuarioRutas, ListaBase):
     permission_required = 'auth.view_user'
     template_name = 'cuentas/usuario_lista.html'
-    columnas = [('Usuario', 'username'), ('Nombre', 'get_full_name'), ('Correo', 'email'),
+    columnas = [('Matrícula', 'matricula'), ('Nombre', 'get_full_name'), ('Correo', 'email'),
                 ('Grupos', 'groups'), ('Activo', 'is_active'), ('Superusuario', 'is_superuser')]
-    buscar_en = ['username', 'first_name', 'last_name', 'email']
-    ordering = ['username']
+    buscar_en = ['matricula__numero', 'first_name', 'last_name', 'email']
+    ordering = ['matricula__numero']
 
     def get_queryset(self):
-        return super().get_queryset().prefetch_related('groups')
+        return super().get_queryset().select_related('matricula').prefetch_related('groups')
 
 
 class UsuarioCrear(LoginRequiredMixin, PermissionRequiredMixin, UsuarioRutas, FormUsuarioMixin, CrearBase):
@@ -156,13 +156,13 @@ class UsuarioPassword(LoginRequiredMixin, PermissionRequiredMixin, FormView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['titulo_pagina'] = f'Cambiar contraseña: {self.usuario.username}'
+        ctx['titulo_pagina'] = f'Cambiar contraseña: {self.usuario.email or self.usuario.username}'
         ctx['cancelar'] = 'cuentas:usuario_lista'
         return ctx
 
     def form_valid(self, form):
         form.save()
-        messages.success(self.request, f'Contraseña de "{self.usuario.username}" actualizada.')
+        messages.success(self.request, f'Contraseña de "{self.usuario.email or self.usuario.username}" actualizada.')
         return redirect('cuentas:usuario_lista')
 
 

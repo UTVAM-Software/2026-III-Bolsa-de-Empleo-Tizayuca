@@ -81,7 +81,7 @@ class LoginLogoutTest(Base):
 
     def test_login_incorrecto(self):
         r = self.client.post(reverse('login'), {'username': 'admin_muni', 'password': 'mala'})
-        self.assertContains(r, 'Usuario o contraseña incorrectos')
+        self.assertContains(r, 'Correo o contraseña incorrectos')
 
     def test_logout_regresa_al_inicio(self):
         self.entrar(self.admin)
@@ -201,13 +201,13 @@ class GestionAuthTest(Base):
         self.entrar(self.admin)
         permiso = Permission.objects.get(codename='view_vacante')
         r = self.client.post(reverse('cuentas:usuario_crear'), {
-            'username': 'nuevo', 'first_name': 'Ana', 'last_name': 'López', 'email': 'ana@x.com',
+            'first_name': 'Ana', 'last_name': 'López', 'email': 'ana@x.com',
             'password1': 'Clave.Segura.123', 'password2': 'Clave.Segura.123',
             'is_active': 'on', 'groups': [Group.objects.get(name='Empresas').pk],
             'user_permissions': [permiso.pk],
         })
         self.assertRedirects(r, reverse('cuentas:usuario_lista'))
-        u = User.objects.get(username='nuevo')
+        u = User.objects.get(email='ana@x.com')
         self.assertTrue(u.check_password('Clave.Segura.123'))
         self.assertTrue(u.groups.filter(name='Empresas').exists())
         self.assertIn(permiso, u.user_permissions.all())
@@ -266,7 +266,7 @@ from django.test import override_settings
 
 class RegistroTest(Base):
     def datos(self, **extra):
-        d = dict(username='nuevo', first_name='Ana', last_name='Pérez', email='ana@example.com',
+        d = dict(first_name='Ana', last_name='Pérez', email='ana@example.com',
                  password1='Clave.Muy.Segura.9', password2='Clave.Muy.Segura.9', tipo='candidato')
         d.update(extra)
         return d
@@ -274,29 +274,29 @@ class RegistroTest(Base):
     def test_registro_candidato_queda_en_su_grupo_y_con_sesion(self):
         r = self.client.post(reverse('cuentas:registro'), self.datos())
         self.assertRedirects(r, reverse('candidatos:crear'))
-        u = User.objects.get(username='nuevo')
+        u = User.objects.get(email='ana@example.com')
         self.assertEqual(list(u.groups.values_list('name', flat=True)), ['Candidatos'])
         self.assertFalse(u.is_staff or u.is_superuser)
 
     def test_registro_empresa(self):
-        r = self.client.post(reverse('cuentas:registro'), self.datos(username='tienda', tipo='empresa',
+        r = self.client.post(reverse('cuentas:registro'), self.datos(tipo='empresa',
                                                                       email='t@example.com'))
         self.assertRedirects(r, reverse('empresas:crear'))
-        self.assertTrue(User.objects.get(username='tienda').groups.filter(name='Empresas').exists())
+        self.assertTrue(User.objects.get(email='t@example.com').groups.filter(name='Empresas').exists())
 
     def test_no_se_puede_elegir_rol_de_administracion(self):
         self.client.post(reverse('cuentas:registro'), self.datos(tipo='Administradores', groups='1',
                                                                   is_superuser='on', is_staff='on'))
-        self.assertFalse(User.objects.filter(username='nuevo').exists())
+        self.assertFalse(User.objects.filter(email='ana@example.com').exists())
         self.client.post(reverse('cuentas:registro'), self.datos(is_superuser='on', is_staff='on'))
-        u = User.objects.get(username='nuevo')
+        u = User.objects.get(email='ana@example.com')
         self.assertFalse(u.is_staff or u.is_superuser)
 
     def test_correo_repetido_y_contrasena_debil(self):
         r = self.client.post(reverse('cuentas:registro'), self.datos(email=self.admin.email or 'x@x.com',
                                                                       password1='12345678', password2='12345678'))
         self.assertEqual(r.status_code, 200)
-        self.assertFalse(User.objects.filter(username='nuevo').exists())
+        self.assertFalse(User.objects.filter(email='ana@example.com').exists())
 
 
 class LoginBloqueoTest(Base):
@@ -395,3 +395,71 @@ class ErroresTest(Base):
         self.entrar(self.u_cand1)
         self.assertContains(self.client.get(reverse('cuentas:usuario_lista')), 'Acceso denegado', status_code=403)
         self.assertContains(self.client.get('/no-existe/'), 'Página no encontrada', status_code=404)
+
+
+# ---------------------------------------------------------------------------
+# Acceso con correo y matrícula automática
+# ---------------------------------------------------------------------------
+from django.db import IntegrityError, transaction
+
+from cuentas.models import Matricula
+
+
+class CorreoYMatriculaTest(Base):
+    def test_cada_usuario_recibe_matricula_unica_y_consecutiva(self):
+        a = User.objects.create_user('a', 'a@example.com', 'Clave.Segura.123')
+        b = User.objects.create_user('b', 'b@example.com', 'Clave.Segura.123')
+        self.assertRegex(a.matricula.numero, r'^TZY-\d{4}-\d{5}$')
+        self.assertNotEqual(a.matricula.numero, b.matricula.numero)
+        self.assertEqual(Matricula.objects.count(), User.objects.count())
+
+    def test_entra_con_correo_sin_importar_mayusculas(self):
+        User.objects.create_user('x', 'Maria@Example.com', 'Clave.Segura.123')
+        for correo in ('maria@example.com', 'MARIA@EXAMPLE.COM'):
+            self.client.logout()
+            r = self.client.post(reverse('login'), {'username': correo, 'password': 'Clave.Segura.123'})
+            self.assertRedirects(r, reverse('cuentas:panel'))
+
+    def test_correo_con_contrasena_mala_no_entra(self):
+        User.objects.create_user('x', 'maria@example.com', 'Clave.Segura.123')
+        r = self.client.post(reverse('login'), {'username': 'maria@example.com', 'password': 'mala'})
+        self.assertContains(r, 'Correo o contraseña incorrectos')
+
+    def test_registro_no_pide_usuario_y_muestra_matricula(self):
+        self.assertNotContains(self.client.get(reverse('cuentas:registro')), 'name="username"')
+        self.client.post(reverse('cuentas:registro'), dict(
+            first_name='Luis', last_name='M', email='luis@example.com', password1='Clave.Muy.Segura.9',
+            password2='Clave.Muy.Segura.9', tipo='candidato'))
+        r = self.client.get(reverse('cuentas:panel'))
+        self.assertContains(r, User.objects.get(email='luis@example.com').matricula.numero)
+
+    def test_correo_repetido_se_bloquea_aunque_cambie_la_capitalizacion(self):
+        User.objects.create_user('x', 'maria@example.com', 'Clave.Segura.123')
+        r = self.client.post(reverse('cuentas:registro'), dict(
+            first_name='Otra', last_name='M', email='MARIA@example.com', password1='Clave.Muy.Segura.9',
+            password2='Clave.Muy.Segura.9', tipo='candidato'))
+        self.assertContains(r, 'Ya existe una cuenta con ese correo')
+
+    def test_la_base_de_datos_tambien_rechaza_correos_repetidos(self):
+        User.objects.create_user('x', 'maria@example.com', 'Clave.Segura.123')
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            User.objects.create_user('y', 'MARIA@example.com', 'Clave.Segura.123')
+
+    def test_admin_crea_usuario_sin_escribir_usuario_y_no_repite_correo(self):
+        self.entrar(self.admin)
+        datos = {'first_name': 'Ana', 'last_name': 'L', 'email': 'ana@x.com',
+                 'password1': 'Clave.Segura.123', 'password2': 'Clave.Segura.123', 'is_active': 'on'}
+        self.assertRedirects(self.client.post(reverse('cuentas:usuario_crear'), datos),
+                             reverse('cuentas:usuario_lista'))
+        r = self.client.post(reverse('cuentas:usuario_crear'), datos)
+        self.assertContains(r, 'Ya existe una cuenta con ese correo')
+
+
+class ErrorBajoSuCampoTest(Base):
+    def test_error_de_correo_sale_despues_del_campo_correo(self):
+        User.objects.create_user('x', 'maria@example.com', 'Clave.Segura.123')
+        html = self.client.post(reverse('cuentas:registro'), dict(
+            first_name='Otra', last_name='Repetido', email='maria@example.com',
+            password1='Clave.Muy.Segura.9', password2='Clave.Muy.Segura.9', tipo='candidato')).content.decode()
+        self.assertGreater(html.index('Ya existe una cuenta con ese correo'), html.index('name="email"'))
+        self.assertLess(html.index('Ya existe una cuenta con ese correo'), html.index('name="password1"'))

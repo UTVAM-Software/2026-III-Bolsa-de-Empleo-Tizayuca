@@ -3,6 +3,8 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import Group, Permission, User
 from django.core.management import call_command
 
+from .backends import username_desde_correo
+
 
 def permisos_qs():
     return Permission.objects.select_related('content_type').order_by(
@@ -16,12 +18,26 @@ class SelectorPermisos(forms.ModelMultipleChoiceField):
         return f'{p.content_type.app_label} | {p.content_type.name} | {p.name}'
 
 
-CAMPOS_USUARIO = ['username', 'first_name', 'last_name', 'email',
+CAMPOS_USUARIO = ['first_name', 'last_name', 'email',
                   'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions']
 ETIQUETAS_USUARIO = {
+    'first_name': 'Nombre(s)', 'last_name': 'Apellidos', 'email': 'Correo electrónico (con el que entra)',
     'is_active': 'Activo', 'is_staff': 'Puede entrar a /admin',
     'is_superuser': 'Superusuario', 'groups': 'Grupos (roles)',
 }
+
+
+class CorreoUnicoMixin:
+    """El correo es el acceso: obligatorio y no puede repetirse (sin importar mayúsculas)."""
+
+    def clean_email(self):
+        correo = self.cleaned_data.get('email', '').strip().lower()
+        if not correo:
+            raise forms.ValidationError('El correo electrónico es obligatorio.')
+        repetido = User.objects.filter(email__iexact=correo).exclude(pk=self.instance.pk)
+        if repetido.exists():
+            raise forms.ValidationError('Ya existe una cuenta con ese correo.')
+        return correo
 
 
 class RolUsuarioMixin:
@@ -39,14 +55,18 @@ class RolUsuarioMixin:
             del self.fields['is_superuser']
 
 
-class UsuarioCrearForm(RolUsuarioMixin, UserCreationForm):
+class UsuarioCrearForm(CorreoUnicoMixin, RolUsuarioMixin, UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
         fields = CAMPOS_USUARIO
         labels = ETIQUETAS_USUARIO
 
+    def save(self, commit=True):
+        self.instance.username = username_desde_correo(self.cleaned_data['email'])
+        return super().save(commit=commit)
 
-class UsuarioEditarForm(RolUsuarioMixin, forms.ModelForm):
+
+class UsuarioEditarForm(CorreoUnicoMixin, RolUsuarioMixin, forms.ModelForm):
     class Meta:
         model = User
         fields = CAMPOS_USUARIO
@@ -72,7 +92,7 @@ class PermisoForm(forms.ModelForm):
         labels = {'name': 'Descripción', 'content_type': 'Modelo', 'codename': 'Código (ej. verificar_empresa)'}
 
 
-class RegistroForm(UserCreationForm):
+class RegistroForm(CorreoUnicoMixin, UserCreationForm):
     """Registro público: la persona elige si busca empleo o si es una empresa.
     Nunca se puede elegir un rol de administración desde aquí."""
     TIPOS = [('candidato', 'Busco empleo'), ('empresa', 'Soy una empresa o negocio')]
@@ -82,8 +102,8 @@ class RegistroForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ['username', 'first_name', 'last_name', 'email']
-        labels = {'username': 'Usuario', 'first_name': 'Nombre(s)', 'last_name': 'Apellidos',
+        fields = ['first_name', 'last_name', 'email']
+        labels = {'first_name': 'Nombre(s)', 'last_name': 'Apellidos',
                   'email': 'Correo electrónico'}
 
     def __init__(self, *args, **kwargs):
@@ -91,13 +111,8 @@ class RegistroForm(UserCreationForm):
         self.fields['email'].required = True
         self.fields['first_name'].required = True
 
-    def clean_email(self):
-        email = self.cleaned_data['email'].strip().lower()
-        if User.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError('Ya existe una cuenta con ese correo.')
-        return email
-
     def save(self, commit=True):
+        self.instance.username = username_desde_correo(self.cleaned_data['email'])
         usuario = super().save(commit=commit)
         nombre = 'Candidatos' if self.cleaned_data['tipo'] == 'candidato' else 'Empresas'
         if not Group.objects.filter(name=nombre).exists():

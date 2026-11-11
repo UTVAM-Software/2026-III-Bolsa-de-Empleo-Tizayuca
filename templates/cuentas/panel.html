@@ -4,7 +4,7 @@
 
 {% block contenido %}
 <h2 class="barra-titulo">Hola, {{ user.get_full_name|default:user.username }}</h2>
-{% if user.groups.all %}<p class="conteo">Rol: {{ user.groups.all|join:", " }}</p>{% endif %}
+<p class="conteo">{% if user.matricula %}Matrícula: <strong>{{ user.matricula }}</strong>{% endif %}{% if user.groups.all %} · Rol: {{ user.groups.all|join:", " }}{% endif %}</p>
 
 {% for seccion, items in secciones %}
     <h3 class="panel-seccion">{{ seccion }}</h3>
