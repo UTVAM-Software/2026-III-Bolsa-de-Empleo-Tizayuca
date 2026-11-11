@@ -11,3 +11,5 @@ env/
 *.sqlite3
 .idea/
 .vscode/
+servidor.log
+.servidor.pid

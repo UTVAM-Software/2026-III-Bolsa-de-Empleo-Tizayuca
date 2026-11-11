@@ -224,6 +224,26 @@ Cada app tiene su migración inicial en su carpeta `migrations/`:
 
 ## Cómo correr el proyecto
 
+### Instalación automática (recomendada)
+
+El script `instalar.sh` (macOS y Linux) hace los 5 pasos de instalación y deja el servicio web activo:
+
+1. Crea el ambiente virtual (`.venv`)
+2. Descarga el código fuente (si se ejecuta solo en una carpeta vacía lo baja con `git clone`; dentro del repositorio usa esos archivos)
+3. Configura la base de datos y los usuarios (instala `requirements.txt`, `migrate`, `preparar_entorno` y 100 vacantes de ejemplo)
+4. Instala y valida las herramientas de Django (`check` y migraciones)
+5. Activa el servicio web y comprueba que responde
+
+```bash
+git clone https://github.com/UTVAM-Software/2026-III-Bolsa-de-Empleo-Tizayuca.git
+cd 2026-III-Bolsa-de-Empleo-Tizayuca
+./instalar.sh
+```
+
+Al terminar imprime la dirección (por defecto http://127.0.0.1:8000) y las cuentas de acceso. Si el puerto está ocupado usa el siguiente; se puede elegir con `PUERTO=8080 ./instalar.sh`. Se puede correr varias veces sin duplicar datos y `./instalar.sh --detener` apaga el servicio. Si falla un paso se detiene con un mensaje de error y código de salida distinto de cero.
+
+### Instalación manual
+
 **Requisitos:** Python 3.12 o superior y git. El repositorio solo contiene el código: no incluye ambiente virtual, base de datos ni archivos subidos. Cada quien crea su ambiente local con los pasos de abajo.
 
 ```bash
