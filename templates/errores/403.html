@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Acceso denegado · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<section class="caja-form angosta">
+    <h2>403 · Acceso denegado</h2>
+    <p>Tu cuenta no tiene permiso para ver esta página.</p>
+    <div class="botones"><a href="{% url 'vacantes:inicio' %}" class="btn btn-principal">Ir al inicio</a></div>
+</section>
+{% endblock %}

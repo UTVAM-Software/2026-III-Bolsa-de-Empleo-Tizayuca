@@ -224,33 +224,53 @@ Cada app tiene su migración inicial en su carpeta `migrations/`:
 
 ## Cómo correr el proyecto
 
+**Requisitos:** Python 3.12 o superior y git. El repositorio solo contiene el código: no incluye ambiente virtual, base de datos ni archivos subidos. Cada quien crea su ambiente local con los pasos de abajo.
+
 ```bash
 # 1. Clonar el repositorio
 git clone <URL-del-repositorio>
 cd BolsaEmpleoTizayuca
 
-# 2. Crear y activar el ambiente virtual
-python3 -m venv MiAmbienteTest
-source MiAmbienteTest/bin/activate      # En Windows: MiAmbienteTest\Scripts\activate
+# 2. Crear y activar el ambiente virtual propio
+python3 -m venv .venv
+source .venv/bin/activate               # En Windows: .venv\Scripts\activate
 
 # 3. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. Aplicar migraciones
+# 4. Crear la base de datos local (SQLite)
 python manage.py migrate
 
-# 5. Crear los roles (Administradores, Empresas, Candidatos) con sus permisos
-python manage.py crear_grupos
+# 5. Preparar el ambiente: roles, categorías y cuentas admin_muni y profesor
+python manage.py preparar_entorno
 
-# 6. Crear un usuario administrador
-python manage.py createsuperuser
-
-# 7. (Opcional) Prueba de carga: 1000 vacantes de prueba
-python manage.py poblar_vacantes            # --cantidad 5000  |  --borrar
-
-# 8. Correr el servidor
+# 6. Correr el servidor
 python manage.py runserver
 ```
+
+Opcional: `python manage.py poblar_vacantes` crea 1000 vacantes de prueba (`--cantidad 5000` o `--borrar`) y `python manage.py test` corre las pruebas.
+
+### Funciones para el público
+- **Registro** en `/panel/registro/`: la persona elige si busca empleo o si es empresa y queda en el grupo correspondiente (nunca en uno de administración).
+- **Detalle de vacante** en `/vacantes/<id>/` y botón **Postularme** (una sola vez por vacante).
+- **Cambio de contraseña** desde el menú.
+
+### Cuentas que crea `preparar_entorno`
+| Usuario | Rol | Contraseña inicial |
+|---|---|---|
+| `admin_muni` | Administradores | `Tizayuca.2026` |
+| `profesor` | Solo lectura | `Tizayuca.2026` |
+
+Son cuentas para uso local; cambia la contraseña con `--password OtraClave` al ejecutar el comando.
+
+### Configuración (variables de entorno, todas opcionales)
+Sin configurar nada funciona en modo desarrollo. Para un despliegue real:
+
+| Variable | Valor por defecto | Uso |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | clave de desarrollo | Clave secreta; obligatoria en producción |
+| `DJANGO_DEBUG` | `1` | Pon `0` en producción |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Dominios permitidos separados por coma |
 
 - Sitio público: http://127.0.0.1:8000
 - Iniciar sesión: http://127.0.0.1:8000/cuentas/login/
@@ -285,8 +305,24 @@ Todos los listados están **paginados** (20 por página; 12 en la página públi
 | Grupo | Qué puede hacer |
 |---|---|
 | Administradores (municipio) | Todo: todos los CRUD, usuarios, grupos, permisos, verificar y destacar |
+| Solo lectura (profesor) | Consultar todos los módulos y registros sin poder crear, editar ni borrar nada |
 | Empresas | Registrar **su** empresa, publicar y administrar **sus** vacantes, cambiar el estado de las postulaciones que les llegan |
 | Candidatos | Llenar **su** perfil y experiencia, postularse a vacantes y ver **sus** postulaciones |
+
+### Medidas de seguridad adicionales
+| Riesgo | Medida |
+|---|---|
+| Fuerza bruta (A07) | Bloqueo de 15 min tras 5 intentos fallidos por usuario e IP; mismo mensaje para usuario inexistente o contraseña mala |
+| Contraseñas débiles (A07) | Validadores de Django (largo mínimo, comunes, solo números) también en el registro |
+| Datos personales (A01) | Los CV **no** tienen URL pública: se descargan en `/candidatos/<id>/cv/` solo por su dueño, el municipio, el perfil de solo lectura o la empresa a cuya vacante se postuló |
+| Archivos subidos (A04/A08) | Solo PDF de hasta 2 MB, con revisión de la firma `%PDF-` y nombre aleatorio en disco |
+| Escalada de privilegios (A01) | El registro público solo permite los roles Candidatos y Empresas |
+| Configuración (A05) | Secretos por variables de entorno; con `DJANGO_DEBUG=0` se fuerza HTTPS, cookies seguras, HSTS y se exige `DJANGO_SECRET_KEY`; `X-Frame-Options: DENY`, `nosniff` y política de referrer |
+| Inyección y XSS (A03) | ORM de Django (sin SQL manual) y autoescape de plantillas |
+| CSRF | Token en todos los formularios; cierre de sesión y postulación solo por POST |
+| Errores | Páginas 403, 404 y 500 propias, sin detalles internos |
+
+`DJANGO_DEBUG=0 python manage.py check --deploy` no reporta problemas.
 
 ### Mitigación de OWASP A01:2021 – Broken Access Control
 1. **Autenticación:** todas las vistas de gestión heredan `LoginRequiredMixin` (o usan `@login_required`). Sin sesión, redirigen al login.
@@ -307,7 +343,7 @@ Todos los listados están **paginados** (20 por página; 12 en la página públi
 ```bash
 python manage.py test
 ```
-27 pruebas: login/logout, que **cada URL** del sistema redirija al login sin sesión, que un rol sin permiso reciba 403, que no se pueda abrir el registro de otro usuario (404), el CRUD de usuarios/grupos/permisos y la prueba de carga con 1000 vacantes.
+45 pruebas: login/logout, que **cada URL** del sistema redirija al login sin sesión, que un rol sin permiso reciba 403, que no se pueda abrir el registro de otro usuario (404), el CRUD de usuarios/grupos/permisos y la prueba de carga con 1000 vacantes.
 
 ---
 

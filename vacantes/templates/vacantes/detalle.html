@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ v.titulo }} · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<article class="caja-form detalle">
+    {% if v.destacada %}<span class="etiqueta">Destacada</span>{% endif %}
+    <h2>{{ v.titulo }}</h2>
+    <p class="empresa">
+        {{ v.empresa.nombre }}
+        {% if v.empresa.verificada %}<span class="verificada">✔ Verificada por el municipio</span>{% endif %}
+    </p>
+    <ul class="datos">
+        <li>📍 {{ v.ubicacion }}</li>
+        <li>🕒 {{ v.horario }}</li>
+        {% if v.sueldo_min %}<li>💵 ${{ v.sueldo_min|floatformat:0 }}{% if v.sueldo_max %} - ${{ v.sueldo_max|floatformat:0 }}{% endif %}</li>{% endif %}
+        <li>🏷️ {{ v.categoria.nombre }}</li>
+        <li>📅 Publicada el {{ v.fecha_publicacion|date:"j \d\e F \d\e Y" }}</li>
+    </ul>
+
+    <h3>Descripción</h3>
+    <p>{{ v.descripcion|linebreaksbr }}</p>
+    {% if v.requisitos %}
+        <h3>Requisitos</h3>
+        <p>{{ v.requisitos|linebreaksbr }}</p>
+    {% endif %}
+
+    <div class="botones">
+        {% if ya_postulado %}
+            <span class="aviso">✔ Ya te postulaste a esta vacante.</span>
+        {% elif user.is_authenticated %}
+            <form method="post" action="{% url 'vacantes:postular' v.pk %}">
+                {% csrf_token %}
+                <label for="id_mensaje">Mensaje para la empresa (opcional)</label>
+                <textarea name="mensaje" id="id_mensaje" rows="3" maxlength="1000"></textarea>
+                <button type="submit" class="btn btn-principal">Postularme</button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}?next={{ request.path|urlencode }}" class="btn btn-principal">Inicia sesión para postularte</a>
+            <a href="{% url 'cuentas:registro' %}" class="btn btn-secundario">Crear cuenta</a>
+        {% endif %}
+        <a href="{% url 'vacantes:inicio' %}" class="btn btn-secundario">Volver</a>
+    </div>
+</article>
+{% endblock %}

@@ -2,6 +2,8 @@ from datetime import date
 
 from django.conf import settings
 from django.db import models
+
+from .validadores import ruta_cv, validar_cv
 from django.urls import reverse
 
 
@@ -21,7 +23,7 @@ class Candidato(models.Model):
     colonia = models.CharField(max_length=100, blank=True)
     escolaridad = models.CharField(max_length=100, blank=True)
     resumen = models.TextField(blank=True)
-    cv = models.FileField(upload_to='cv/', blank=True)
+    cv = models.FileField(upload_to=ruta_cv, blank=True, validators=[validar_cv])
     habilidades = models.ManyToManyField(Habilidad, blank=True)
 
     def __str__(self):

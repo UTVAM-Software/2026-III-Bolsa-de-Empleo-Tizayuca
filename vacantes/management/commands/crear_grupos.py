@@ -1,4 +1,4 @@
-"""Crea los 3 roles del sistema con sus permisos.
+"""Crea los 4 roles del sistema con sus permisos.
 
 Uso:  python manage.py crear_grupos
 Se puede correr las veces que quieras; no duplica nada.
@@ -10,6 +10,9 @@ from django.core.management.base import BaseCommand
 ROLES = {
     # El municipio: control total de todo, incluidos usuarios y grupos
     'Administradores': '__todos__',
+
+    # Perfil de consulta (profesor, auditoría): ve todo, no puede crear, editar ni borrar
+    'Solo lectura': '__ver__',
 
     # Empresas / negocios: registran su empresa, publican y administran SUS vacantes
     # y cambian el estado de las postulaciones que les llegan
@@ -34,13 +37,15 @@ ROLES = {
 
 
 class Command(BaseCommand):
-    help = 'Crea los grupos Administradores, Empresas y Candidatos con sus permisos'
+    help = 'Crea los grupos Administradores, Solo lectura, Empresas y Candidatos con sus permisos'
 
     def handle(self, *args, **options):
         for nombre, permisos in ROLES.items():
             grupo, _ = Group.objects.get_or_create(name=nombre)
             if permisos == '__todos__':
                 qs = Permission.objects.all()
+            elif permisos == '__ver__':
+                qs = Permission.objects.filter(codename__startswith='view_')
             else:
                 qs = Permission.objects.none()
                 for p in permisos:

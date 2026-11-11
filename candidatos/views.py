@@ -1,8 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.http import FileResponse, Http404
+from django.shortcuts import get_object_or_404, redirect
 
-from cuentas.mixins import AsignarUsuarioMixin, CrearBase, EditarBase, EliminarBase, ListaBase, es_admin
+from cuentas.mixins import AsignarUsuarioMixin, CrearBase, EditarBase, EliminarBase, ListaBase, es_admin, ve_todo
 
 from .forms import CandidatoForm, ExperienciaForm, HabilidadForm
 from .models import Candidato, Experiencia, Habilidad
@@ -33,6 +36,7 @@ class CandidatoRutas:
 
 class CandidatoLista(LoginRequiredMixin, PermissionRequiredMixin, CandidatoRutas, ListaBase):
     permission_required = 'candidatos.view_candidato'
+    template_name = 'candidatos/candidato_lista.html'
     columnas = [('Nombre', 'nombre_completo'), ('Teléfono', 'telefono'), ('Colonia', 'colonia'),
                 ('Escolaridad', 'escolaridad'), ('Años de experiencia', 'anios_experiencia'),
                 ('Habilidades', 'habilidades')]
@@ -138,3 +142,22 @@ class ExperienciaEditar(LoginRequiredMixin, PermissionRequiredMixin, Experiencia
 
 class ExperienciaEliminar(LoginRequiredMixin, PermissionRequiredMixin, ExperienciaRutas, EliminarBase):
     permission_required = 'candidatos.delete_experiencia'
+
+
+# ---------------------------------------------------------------------------
+# Descarga protegida del currículum
+# ---------------------------------------------------------------------------
+
+@login_required
+def descargar_cv(request, pk):
+    """El CV es un dato personal: solo lo ve su dueño, el municipio, el perfil de solo lectura
+    y las empresas a cuyas vacantes se postuló el candidato. Cualquier otro recibe 404."""
+    permitido = Q(usuario=request.user) | Q(postulaciones__vacante__empresa__usuario=request.user)
+    candidato = Candidato.objects.filter(pk=pk)
+    if not ve_todo(request.user):
+        candidato = candidato.filter(permitido)
+    candidato = candidato.distinct().first()
+    if candidato is None or not candidato.cv:
+        raise Http404
+    return FileResponse(candidato.cv.open('rb'), content_type='application/pdf',
+                        filename=f'cv_{candidato.pk}.pdf')

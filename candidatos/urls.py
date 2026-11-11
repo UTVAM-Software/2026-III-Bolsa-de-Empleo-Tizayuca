@@ -10,6 +10,8 @@ urlpatterns = [
     path('<int:pk>/editar/', views.CandidatoEditar.as_view(), name='editar'),
     path('<int:pk>/eliminar/', views.CandidatoEliminar.as_view(), name='eliminar'),
 
+    path('<int:pk>/cv/', views.descargar_cv, name='cv'),
+
     path('habilidades/', views.HabilidadLista.as_view(), name='habilidad_lista'),
     path('habilidades/nueva/', views.HabilidadCrear.as_view(), name='habilidad_crear'),
     path('habilidades/<int:pk>/editar/', views.HabilidadEditar.as_view(), name='habilidad_editar'),

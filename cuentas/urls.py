@@ -6,6 +6,7 @@ app_name = 'cuentas'
 
 urlpatterns = [
     path('', views.panel, name='panel'),
+    path('registro/', views.registro, name='registro'),
 
     path('usuarios/', views.UsuarioLista.as_view(), name='usuario_lista'),
     path('usuarios/nuevo/', views.UsuarioCrear.as_view(), name='usuario_crear'),

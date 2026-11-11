@@ -1,5 +1,6 @@
 """Gestión de Django Auth (User, Group, Permission) desde la propia app, sin depender de /admin."""
 from django.contrib import messages
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
@@ -9,8 +10,33 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.functional import cached_property
 from django.views.generic import FormView
 
-from .forms import GrupoForm, PermisoForm, UsuarioCrearForm, UsuarioEditarForm
+from .forms import RegistroForm, GrupoForm, PermisoForm, UsuarioCrearForm, UsuarioEditarForm
 from .mixins import CrearBase, EditarBase, EliminarBase, ListaBase
+
+
+def registro(request):
+    """Alta pública de candidatos y empresas. Quien ya tiene sesión no necesita registrarse."""
+    if request.user.is_authenticated:
+        return redirect('cuentas:panel')
+    form = RegistroForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        usuario = form.save()
+        login(request, usuario)
+        messages.success(request, 'Cuenta creada. Completa tu perfil para continuar.')
+        return redirect('candidatos:crear' if form.cleaned_data['tipo'] == 'candidato' else 'empresas:crear')
+    return render(request, 'registration/registro.html', {'form': form})
+
+
+def error_403(request, exception=None):
+    return render(request, 'errores/403.html', status=403)
+
+
+def error_404(request, exception=None):
+    return render(request, 'errores/404.html', status=404)
+
+
+def error_500(request):
+    return render(request, 'errores/500.html', status=500)
 
 
 @login_required

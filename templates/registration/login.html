@@ -6,8 +6,8 @@
 <section class="caja-form angosta">
     <h2>Iniciar sesión</h2>
 
-    {% if form.errors %}
-        <div class="aviso aviso-error">Usuario o contraseña incorrectos.</div>
+    {% if form.non_field_errors %}
+        {% for e in form.non_field_errors %}<div class="aviso aviso-error">{{ e }}</div>{% endfor %}
     {% endif %}
     {% if next and user.is_authenticated %}
         <div class="aviso aviso-error">Tu cuenta no tiene permiso para ver esa página.</div>
@@ -22,5 +22,6 @@
         <input type="hidden" name="next" value="{{ next }}">
         <button type="submit" class="btn btn-principal">Entrar</button>
     </form>
+    <p class="ayuda">¿No tienes cuenta? <a href="{% url 'cuentas:registro' %}">Regístrate</a></p>
 </section>
 {% endblock %}

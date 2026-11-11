@@ -4,3 +4,10 @@ __pycache__/
 *.pyc
 media/
 .DS_Store
+.venv/
+venv/
+env/
+.env
+*.sqlite3
+.idea/
+.vscode/

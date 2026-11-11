@@ -8,6 +8,9 @@ urlpatterns = [
     # Pública
     path('', views.inicio, name='inicio'),
 
+    path('vacantes/<int:pk>/', views.detalle, name='detalle'),
+    path('vacantes/<int:pk>/postular/', views.postular, name='postular'),
+
     # Gestión de vacantes (con login)
     path('gestion/vacantes/', views.VacanteLista.as_view(), name='lista'),
     path('gestion/vacantes/nueva/', views.VacanteCrear.as_view(), name='crear'),

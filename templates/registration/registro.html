@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Crear cuenta · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<section class="caja-form">
+    <h2>Crear cuenta</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-principal">Registrarme</button>
+    </form>
+    <p class="ayuda">¿Ya tienes cuenta? <a href="{% url 'login' %}">Inicia sesión</a></p>
+</section>
+{% endblock %}

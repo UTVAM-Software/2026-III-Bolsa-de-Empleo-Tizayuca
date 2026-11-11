@@ -18,7 +18,7 @@
             {% for v in vacantes %}
                 <article class="tarjeta {% if v.destacada %}destacada{% endif %}">
                     {% if v.destacada %}<span class="etiqueta">Destacada</span>{% endif %}
-                    <h2>{{ v.titulo }}</h2>
+                    <h2><a href="{% url 'vacantes:detalle' v.pk %}">{{ v.titulo }}</a></h2>
                     <p class="empresa">
                         {{ v.empresa.nombre }}
                         {% if v.empresa.verificada %}<span class="verificada">✔ Verificada</span>{% endif %}
@@ -32,6 +32,7 @@
                         <li>🏷️ {{ v.categoria.nombre }}</li>
                     </ul>
                     <p class="descripcion">{{ v.descripcion|truncatewords:25 }}</p>
+                    <a href="{% url 'vacantes:detalle' v.pk %}" class="btn btn-principal btn-chico">Ver y postularme</a>
                 </article>
             {% empty %}
                 <p class="vacio">No hay vacantes con esos filtros por ahora.</p>

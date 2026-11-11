@@ -19,7 +19,8 @@ class Base(TestCase):
     @classmethod
     def setUpTestData(cls):
         call_command('crear_grupos', verbosity=0)
-        g = {n: Group.objects.get(name=n) for n in ('Administradores', 'Empresas', 'Candidatos')}
+        g = {n: Group.objects.get(name=n)
+             for n in ('Administradores', 'Solo lectura', 'Empresas', 'Candidatos')}
 
         def usuario(nombre, grupo):
             u = User.objects.create_user(nombre, password='Clave.Segura.123')
@@ -29,6 +30,7 @@ class Base(TestCase):
         cls.admin = usuario('admin_muni', 'Administradores')
         cls.u_emp1, cls.u_emp2 = usuario('empresa1', 'Empresas'), usuario('empresa2', 'Empresas')
         cls.u_cand1, cls.u_cand2 = usuario('cand1', 'Candidatos'), usuario('cand2', 'Candidatos')
+        cls.profesor = usuario('profesor', 'Solo lectura')
         cls.root = User.objects.create_superuser('root', password='Clave.Segura.123')
 
         datos = dict(tipo='local', giro='g', direccion='d', telefono='1')
@@ -172,6 +174,26 @@ class RegistrosAjenosTest(Base):
         self.assertFalse(e.verificada)   # no se puede auto-verificar
 
 
+class SoloLecturaTest(Base):
+    """El perfil 'Solo lectura' ve todo, pero no puede crear, editar ni borrar nada."""
+
+    def test_ve_todos_los_registros_de_todos(self):
+        self.entrar(self.profesor)
+        self.assertContains(self.client.get(reverse('empresas:lista')), 'Barbería Dos')
+        self.assertContains(self.client.get(reverse('empresas:lista')), 'Panadería Uno')
+        self.assertEqual(self.client.get(reverse('candidatos:lista')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('postulaciones:lista')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('cuentas:usuario_lista')).status_code, 200)
+
+    def test_no_puede_crear_editar_ni_borrar(self):
+        self.entrar(self.profesor)
+        for url in self.todas_las_urls():
+            if any(a in url for a in ('nuevo', 'editar', 'eliminar', 'contrasena')):
+                self.assertEqual(self.client.get(url).status_code, 403, url)
+                self.assertEqual(self.client.post(url, {}).status_code, 403, url)
+        self.assertTrue(Empresa.objects.filter(pk=self.emp1.pk).exists())
+
+
 class GestionAuthTest(Base):
     """Usuarios, grupos y permisos desde la app (sin /admin)."""
 
@@ -232,3 +254,144 @@ class PropiedadesModeloTest(Base):
         self.assertEqual(self.emp1.vacantes_activas, 1)
         self.assertTrue(self.post1.esta_abierta)
         self.assertEqual(self.vac1.get_absolute_url(), reverse('vacantes:editar', args=[self.vac1.pk]))
+
+
+# ---------------------------------------------------------------------------
+# Entrega final: registro, seguridad de login, CV, detalle y postulación
+# ---------------------------------------------------------------------------
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+
+
+class RegistroTest(Base):
+    def datos(self, **extra):
+        d = dict(username='nuevo', first_name='Ana', last_name='Pérez', email='ana@example.com',
+                 password1='Clave.Muy.Segura.9', password2='Clave.Muy.Segura.9', tipo='candidato')
+        d.update(extra)
+        return d
+
+    def test_registro_candidato_queda_en_su_grupo_y_con_sesion(self):
+        r = self.client.post(reverse('cuentas:registro'), self.datos())
+        self.assertRedirects(r, reverse('candidatos:crear'))
+        u = User.objects.get(username='nuevo')
+        self.assertEqual(list(u.groups.values_list('name', flat=True)), ['Candidatos'])
+        self.assertFalse(u.is_staff or u.is_superuser)
+
+    def test_registro_empresa(self):
+        r = self.client.post(reverse('cuentas:registro'), self.datos(username='tienda', tipo='empresa',
+                                                                      email='t@example.com'))
+        self.assertRedirects(r, reverse('empresas:crear'))
+        self.assertTrue(User.objects.get(username='tienda').groups.filter(name='Empresas').exists())
+
+    def test_no_se_puede_elegir_rol_de_administracion(self):
+        self.client.post(reverse('cuentas:registro'), self.datos(tipo='Administradores', groups='1',
+                                                                  is_superuser='on', is_staff='on'))
+        self.assertFalse(User.objects.filter(username='nuevo').exists())
+        self.client.post(reverse('cuentas:registro'), self.datos(is_superuser='on', is_staff='on'))
+        u = User.objects.get(username='nuevo')
+        self.assertFalse(u.is_staff or u.is_superuser)
+
+    def test_correo_repetido_y_contrasena_debil(self):
+        r = self.client.post(reverse('cuentas:registro'), self.datos(email=self.admin.email or 'x@x.com',
+                                                                      password1='12345678', password2='12345678'))
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(User.objects.filter(username='nuevo').exists())
+
+
+class LoginBloqueoTest(Base):
+    def setUp(self):
+        cache.clear()
+
+    def test_bloquea_tras_demasiados_intentos(self):
+        url = reverse('login')
+        for _ in range(5):
+            self.client.post(url, {'username': 'cand1', 'password': 'mala'})
+        r = self.client.post(url, {'username': 'cand1', 'password': 'Clave.Segura.123'})
+        self.assertContains(r, 'Demasiados intentos')
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_login_correcto_no_se_bloquea(self):
+        r = self.client.post(reverse('login'), {'username': 'cand1', 'password': 'Clave.Segura.123'})
+        self.assertRedirects(r, reverse('cuentas:panel'))
+
+
+class CvTest(Base):
+    def pdf(self, nombre='cv.pdf', contenido=b'%PDF-1.4 prueba'):
+        return SimpleUploadedFile(nombre, contenido, content_type='application/pdf')
+
+    def subir(self, archivo):
+        self.entrar(self.u_cand1)
+        return self.client.post(reverse('candidatos:editar', args=[self.cand1.pk]),
+                                {'colonia': 'Centro', 'cv': archivo})
+
+    def test_rechaza_archivos_que_no_son_pdf(self):
+        for archivo in (self.pdf('cv.exe'), self.pdf('cv.pdf', b'MZ no soy pdf'),
+                        self.pdf('grande.pdf', b'%PDF-' + b'0' * (2 * 1024 * 1024))):
+            self.assertEqual(self.subir(archivo).status_code, 200)
+        self.cand1.refresh_from_db()
+        self.assertFalse(self.cand1.cv)
+
+    def test_acceso_al_cv(self):
+        import tempfile
+        with override_settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            self.assertEqual(self.subir(self.pdf()).status_code, 302)
+            self.cand1.refresh_from_db()
+            self.assertRegex(self.cand1.cv.name, r'^cv/[0-9a-f]{32}\.pdf$')
+            url = reverse('candidatos:cv', args=[self.cand1.pk])
+            self.client.logout()
+            self.assertEqual(self.client.get(url).status_code, 302)           # sin sesión
+            for quien, esperado in ((self.u_cand1, 200), (self.admin, 200), (self.profesor, 200),
+                                    (self.u_emp1, 200),    # le llegó una postulación de cand1
+                                    (self.u_emp2, 404), (self.u_cand2, 404)):
+                self.entrar(quien)
+                self.assertEqual(self.client.get(url).status_code, esperado, quien.username)
+
+    def test_media_ya_no_es_publica(self):
+        self.assertEqual(self.client.get('/media/cv/lo_que_sea.pdf').status_code, 404)
+
+
+class DetalleYPostularTest(Base):
+    def test_detalle_publico(self):
+        r = self.client.get(reverse('vacantes:detalle', args=[self.vac1.pk]))
+        self.assertContains(r, 'Panadero')
+        self.assertContains(r, 'Inicia sesión para postularte')
+
+    def test_vacante_inactiva_da_404(self):
+        self.vac2.activa = False
+        self.vac2.save()
+        self.assertEqual(self.client.get(reverse('vacantes:detalle', args=[self.vac2.pk])).status_code, 404)
+
+    def test_postular_requiere_post_y_sesion(self):
+        url = reverse('vacantes:postular', args=[self.vac2.pk])
+        self.assertEqual(self.client.post(url).status_code, 302)
+        self.assertFalse(Postulacion.objects.filter(vacante=self.vac2, candidato=self.cand1).exists())
+        self.entrar(self.u_cand1)
+        self.assertEqual(self.client.get(url).status_code, 405)
+
+    def test_candidato_se_postula_una_vez(self):
+        self.entrar(self.u_cand1)
+        url = reverse('vacantes:postular', args=[self.vac2.pk])
+        self.client.post(url, {'mensaje': 'Hola'})
+        self.client.post(url, {'mensaje': 'Hola otra vez'})
+        self.assertEqual(Postulacion.objects.filter(vacante=self.vac2, candidato=self.cand1).count(), 1)
+
+    def test_empresa_no_puede_postularse(self):
+        self.entrar(self.u_emp1)
+        self.client.post(reverse('vacantes:postular', args=[self.vac2.pk]))
+        self.assertEqual(Postulacion.objects.filter(vacante=self.vac2).count(), 1)  # solo la de cand2
+
+
+class SoloLecturaVacantesTest(Base):
+    def test_ve_vacantes_de_todas_las_empresas(self):
+        self.entrar(self.profesor)
+        r = self.client.get(reverse('vacantes:lista'))
+        self.assertContains(r, 'Panadero')
+        self.assertContains(r, 'Barbero')
+
+
+class ErroresTest(Base):
+    def test_paginas_de_error_con_diseno(self):
+        self.entrar(self.u_cand1)
+        self.assertContains(self.client.get(reverse('cuentas:usuario_lista')), 'Acceso denegado', status_code=403)
+        self.assertContains(self.client.get('/no-existe/'), 'Página no encontrada', status_code=404)

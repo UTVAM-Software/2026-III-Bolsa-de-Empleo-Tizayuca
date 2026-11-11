@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-qct+h80+m1^ht59u%hi$l_a(du1zo94@3&*=gl3@zsdn)6ton&'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-solo-para-desarrollo-local-cambiar-en-produccion',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -122,14 +126,40 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+# Seguridad
+# Cabeceras que se envían siempre
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_AGE = 60 * 60 * 8          # la sesión caduca a las 8 horas
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# Solo en producción (DJANGO_DEBUG=0): todo por HTTPS
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    if SECRET_KEY.startswith('django-insecure'):
+        raise RuntimeError('Define DJANGO_SECRET_KEY antes de correr con DJANGO_DEBUG=0.')
+
+# Intentos de inicio de sesión fallidos permitidos antes de bloquear (usuario + IP)
+LOGIN_MAX_INTENTOS = 5
+LOGIN_BLOQUEO_SEGUNDOS = 15 * 60
+
+# Currículum: solo PDF de hasta 2 MB
+CV_MAX_BYTES = 2 * 1024 * 1024
+
+# La aplicación no envía correos, por eso no se configura MAILERS.
 
 
 # Login / logout
@@ -138,5 +168,6 @@ LOGIN_REDIRECT_URL = 'cuentas:panel'
 LOGOUT_REDIRECT_URL = 'vacantes:inicio'
 
 # Archivos subidos (CV de candidatos)
-MEDIA_URL = 'media/'
+# Los CV son datos personales: NO se sirven por URL pública, solo por la vista protegida
+# `candidatos:cv`, que revisa permisos.
 MEDIA_ROOT = BASE_DIR / 'media'

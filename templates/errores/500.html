@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Algo salió mal · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<section class="caja-form angosta">
+    <h2>500 · Algo salió mal</h2>
+    <p>Tuvimos un problema. Intenta de nuevo en unos minutos.</p>
+    <div class="botones"><a href="{% url 'vacantes:inicio' %}" class="btn btn-principal">Ir al inicio</a></div>
+</section>
+{% endblock %}

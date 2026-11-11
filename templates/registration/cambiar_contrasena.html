@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Cambiar contraseña · Bolsa de Empleo Tizayuca{% endblock %}
+
+{% block contenido %}
+<section class="caja-form angosta">
+    <h2>Cambiar contraseña</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-principal">Guardar</button>
+    </form>
+</section>
+{% endblock %}

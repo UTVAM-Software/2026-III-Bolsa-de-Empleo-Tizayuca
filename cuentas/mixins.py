@@ -21,12 +21,19 @@ def es_admin(user):
     )
 
 
+def ve_todo(user):
+    """Puede leer los registros de todos: administradores y el perfil 'Solo lectura'."""
+    return es_admin(user) or (
+        user.is_authenticated and user.groups.filter(name='Solo lectura').exists()
+    )
+
+
 class PropietarioMixin:
     """Control de acceso horizontal (OWASP A01 / IDOR).
 
     `campos_propietario` son rutas hacia el usuario dueño del registro, por ejemplo
     ('usuario',) o ('candidato__usuario', 'vacante__empresa__usuario').
-    Un usuario que no es administrador solo obtiene los registros que le pertenecen;
+    Un usuario que no es administrador ni 'Solo lectura' solo obtiene los registros que le pertenecen;
     si escribe a mano la URL de un registro ajeno, Django responde 404.
     Si `campos_propietario` está vacío, el modelo es un catálogo (todos ven todo).
     """
@@ -35,7 +42,7 @@ class PropietarioMixin:
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
-        if not self.campos_propietario or es_admin(user):
+        if not self.campos_propietario or ve_todo(user):
             return qs
         filtro = reduce(or_, [Q(**{campo: user}) for campo in self.campos_propietario])
         return qs.filter(filtro).distinct()

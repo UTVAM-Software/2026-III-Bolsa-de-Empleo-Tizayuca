@@ -1,0 +1,5 @@
+{% extends 'crud/lista.html' %}
+
+{% block acciones_extra %}
+    {% if obj.cv %}<a href="{% url 'candidatos:cv' obj.pk %}" class="btn btn-secundario btn-chico" target="_blank" rel="noopener">Ver CV</a>{% endif %}
+{% endblock %}

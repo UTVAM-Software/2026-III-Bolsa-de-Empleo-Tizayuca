@@ -3,11 +3,16 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.paginator import Paginator
 from django.db.models import ProtectedError, Q
-from django.shortcuts import redirect, render
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
+from candidatos.models import Candidato
+from cuentas.mixins import ve_todo
 from empresas.models import Empresa
+from postulaciones.models import Postulacion
 
 from .forms import CategoriaForm, VacanteForm
 from .models import Categoria, Vacante
@@ -55,6 +60,35 @@ def inicio(request):
     return render(request, 'vacantes/inicio.html', contexto)
 
 
+def detalle(request, pk):
+    """Página pública de una vacante activa, con el botón para postularse."""
+    vacante = get_object_or_404(Vacante.objects.select_related('empresa', 'categoria'), pk=pk, activa=True)
+    ya_postulado = (request.user.is_authenticated and Postulacion.objects.filter(
+        vacante=vacante, candidato__usuario=request.user).exists())
+    return render(request, 'vacantes/detalle.html', {'v': vacante, 'ya_postulado': ya_postulado})
+
+
+@login_required
+@require_POST
+def postular(request, pk):
+    """Un clic: el candidato con sesión se postula a la vacante (una sola vez)."""
+    vacante = get_object_or_404(Vacante, pk=pk, activa=True)
+    candidato = Candidato.objects.filter(usuario=request.user).first()
+    if candidato is None:
+        messages.info(request, 'Primero completa tu perfil de candidato para poder postularte.')
+        return redirect('candidatos:crear')
+    if not request.user.has_perm('postulaciones.add_postulacion'):
+        messages.error(request, 'Tu cuenta no puede postularse a vacantes.')
+        return redirect('vacantes:detalle', pk=pk)
+    _, creada = Postulacion.objects.get_or_create(
+        candidato=candidato, vacante=vacante, defaults={'mensaje': request.POST.get('mensaje', '')[:1000]})
+    if creada:
+        messages.success(request, f'Te postulaste a "{vacante.titulo}". La empresa revisará tu perfil.')
+    else:
+        messages.info(request, 'Ya te habías postulado a esta vacante.')
+    return redirect('vacantes:detalle', pk=pk)
+
+
 # ---------------------------------------------------------------------------
 # CRUD de Vacantes (requiere sesión y permisos)
 # ---------------------------------------------------------------------------
@@ -65,7 +99,7 @@ class VacantesDelUsuarioMixin:
 
     def get_queryset(self):
         qs = Vacante.objects.select_related('empresa', 'categoria')
-        if es_admin(self.request.user):
+        if ve_todo(self.request.user):
             return qs
         return qs.filter(empresa__usuario=self.request.user)
 
